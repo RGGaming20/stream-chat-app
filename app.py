@@ -237,13 +237,10 @@ def start_stream(url):
     _bg_thread = threading.Thread(target=_run_async_loop, args=(vid_id,), daemon=True)
     _bg_thread.start()
 
-    # Wait briefly to see if connection succeeds
-    time.sleep(3)
-
-    if error_message and "not live" in error_message.lower():
-        return False, error_message
-
-    return True, "Stream started! Connecting to chat..."
+    # Give the thread a moment to start, then report success
+    # is_connected will be updated by the async loop itself
+    time.sleep(1)
+    return True, "Stream started! Chat connecting in background..."
 
 
 # ── Flask routes ──────────────────────────────────────────────────────────────
