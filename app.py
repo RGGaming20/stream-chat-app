@@ -58,10 +58,6 @@ should_stop       = False
 reconnect_attempts = 0
 _bg_thread        = None
 
-# --- ONE VOTE PER USER ---
-# Maps username -> team name they voted for (locked for the stream)
-user_votes        = {}
-
 
 # ── YouTube API helpers ───────────────────────────────────────────────────────
 
@@ -155,8 +151,8 @@ def fetch_chat_messages(live_chat_id, page_token=None):
             if text and name:
                 messages.append((name, text, pfp))
 
-        next_token = data.get("nextPageToken")
-        polling_ms = data.get("pollingIntervalMillis", 5000)
+        next_token    = data.get("nextPageToken")
+        polling_ms    = data.get("pollingIntervalMillis", 5000)
 
         return messages, next_token, polling_ms, None
 
@@ -166,55 +162,25 @@ def fetch_chat_messages(live_chat_id, page_token=None):
 
 # ── Message processing ────────────────────────────────────────────────────────
 
-def detect_team(msg):
-    """
-    Return the first team whose keyword appears in the message, or None.
-    Checks longer/more-specific keywords first to avoid short-keyword false matches.
-    """
-    # Sort teams so longer keywords are matched first (avoids "OG" swallowing "Orangutan")
-    for team_name, team_data in sorted(
-        TEAMS.items(),
-        key=lambda x: max((len(k) for k in x[1]["keywords"]), default=0),
-        reverse=True
-    ):
-        for kw in team_data["keywords"]:
-            if kw in msg:
-                return team_name
-    return None
-
-
 def process_message(author, msg, pfp):
-    """
-    Count general chat activity, then assign at most ONE team vote per user
-    for the entire stream session.  Spam from the same user never adds more votes.
-    """
     global total_messages
     total_messages += 1
 
-    # Track chatter activity (still counts all messages for leaderboard)
     if author not in chatter_counts:
         chatter_counts[author] = {"count": 0, "pfp": pfp}
     chatter_counts[author]["count"] += 1
     if pfp:
         chatter_counts[author]["pfp"] = pfp
 
-    # Push to live chat queue
     if chat_queue.full():
         try: chat_queue.get_nowait()
         except: pass
     chat_queue.put({"author": author, "message": msg})
 
-    # ── ONE VOTE PER USER LOGIC ──────────────────────────────────────────────
-    # If this user has already voted, ignore any team keywords in future messages
-    if author in user_votes:
-        return
-
-    # First time this user mentions a team keyword → lock their vote
-    team = detect_team(msg)
-    if team:
-        user_votes[author] = team          # lock the user to this team
-        TEAMS[team]["count"] += 1          # add exactly 1 fan to the team
-    # ────────────────────────────────────────────────────────────────────────
+    for team_name, team_data in TEAMS.items():
+        matches = sum(msg.count(kw) for kw in team_data["keywords"] if kw in msg)
+        if matches > 0:
+            TEAMS[team_name]["count"] += matches
 
 
 # ── Background worker ─────────────────────────────────────────────────────────
@@ -243,11 +209,11 @@ def chat_worker(vid_id):
     error_message  = ""
     reconnect_attempts = 0
 
-    page_token         = None
+    page_token        = None
     message_timestamps = []
-    last_rate_time     = time.time()
-    seen_ids           = set()   # avoid processing duplicate messages
-    first_fetch        = True
+    last_rate_time    = time.time()
+    seen_ids          = set()   # avoid processing duplicate messages
+    first_fetch       = True
 
     while not should_stop:
         messages, next_token, polling_ms, err = fetch_chat_messages(live_chat_id, page_token)
@@ -311,13 +277,12 @@ def chat_worker(vid_id):
 def start_stream(url):
     global video_id, is_connected, error_message, should_stop
     global total_messages, chatter_counts, reconnect_attempts, _bg_thread
-    global user_votes
 
     # Stop existing worker
     should_stop = True
     time.sleep(1.5)
 
-    # Reset everything (including per-user vote locks)
+    # Reset everything
     for t in TEAMS: TEAMS[t]["count"] = 0
     while not chat_queue.empty():
         try: chat_queue.get_nowait()
@@ -329,7 +294,6 @@ def start_stream(url):
     error_message      = "Connecting to YouTube API..."
     is_connected       = False
     should_stop        = False
-    user_votes         = {}        # ← clear vote locks for new stream
 
     vid_id   = extract_video_id(url)
     video_id = vid_id
@@ -383,10 +347,8 @@ def admin():
             success = "⏹️ Stream stopped"
 
         elif action == "reset_votes" and session.get("admin"):
-            global user_votes
             for t in TEAMS: TEAMS[t]["count"] = 0
-            user_votes = {}        # ← also clear vote locks on manual reset
-            success = "🔄 All fan counts reset to 0"
+            success = "🔄 All votes reset to 0"
 
         elif action == "reset_fans" and session.get("admin"):
             global chatter_counts
@@ -435,7 +397,6 @@ def get_data():
 
 @app.route("/inject_votes", methods=["POST"])
 def inject_votes():
-    """Manually add fan counts (bypasses per-user lock — admin use only)."""
     try:
         data = request.get_json()
         if not data or "votes" not in data:
@@ -454,9 +415,7 @@ def inject_votes():
 
 @app.route("/reset_votes", methods=["POST"])
 def reset_votes():
-    global user_votes
     for t in TEAMS: TEAMS[t]["count"] = 0
-    user_votes = {}
     return jsonify({"success": True})
 
 
