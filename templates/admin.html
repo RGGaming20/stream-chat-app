@@ -274,8 +274,31 @@
 
     <hr class="divider">
 
-    <!-- Reset Buttons -->
-    <label>Danger Zone</label>
+    <hr class="divider">
+
+    <!-- Inject Votes -->
+    <label>💉 Inject Votes</label>
+    <div id="team-inputs-admin" style="max-height:220px; overflow-y:auto; margin-bottom:10px;"></div>
+    <div style="display:flex; gap:10px; flex-wrap:wrap;">
+        <button class="btn btn-primary" style="flex:1;" onclick="injectVotes()">💉 Inject Votes</button>
+    </div>
+    <div id="injectStatus" style="margin-top:8px; font-size:0.9rem; color:#00ffcc; min-height:20px;"></div>
+
+    <hr class="divider">
+
+    <!-- Inject Fan -->
+    <label>🏆 Inject Fan Count</label>
+    <div style="display:flex; gap:10px; margin-bottom:8px;">
+        <input type="text" id="fan-name" placeholder="Username" style="flex:2;">
+        <input type="number" id="fan-count" placeholder="Count" value="0" style="flex:1;">
+    </div>
+    <button class="btn btn-primary" onclick="injectFan()">💉 Inject Fan</button>
+    <div id="fanStatus" style="margin-top:8px; font-size:0.9rem; color:#00ffcc; min-height:20px;"></div>
+
+    <hr class="divider">
+
+    <!-- Danger Zone -->
+    <label>⚠️ Danger Zone</label>
     <div class="action-row">
         <form method="POST">
             <input type="hidden" name="action" value="reset_votes">
@@ -298,6 +321,71 @@
     </div>
 
     <a href="/" class="view-link">👁️ View Public Dashboard →</a>
+
+    <script>
+    // Load teams and build inject form
+    async function loadTeams() {
+        try {
+            const res = await fetch('/get_teams');
+            const data = await res.json();
+            const container = document.getElementById('team-inputs-admin');
+            container.innerHTML = '';
+            for (const [name, count] of Object.entries(data.teams)) {
+                const id = 'inject-' + name.replace(/\s+/g, '-');
+                container.innerHTML += `
+                    <div style="display:flex; align-items:center; gap:8px; margin-bottom:6px;">
+                        <label style="flex:1; font-size:0.85rem; color:rgba(255,255,255,0.7);">${name} <span style="color:#555;">(${count})</span></label>
+                        <input type="number" id="${id}" value="0" placeholder="0"
+                               style="width:70px; background:rgba(255,255,255,0.07); border:1px solid rgba(255,255,255,0.15); border-radius:6px; padding:4px 8px; color:#fff; font-family:inherit;">
+                    </div>`;
+            }
+        } catch(e) { console.error(e); }
+    }
+
+    async function injectVotes() {
+        const container = document.getElementById('team-inputs-admin');
+        const inputs = container.querySelectorAll('input[type=number]');
+        const votes = {};
+        inputs.forEach(inp => {
+            const v = parseInt(inp.value) || 0;
+            if (v !== 0) {
+                const name = inp.id.replace('inject-', '').replace(/-/g, ' ');
+                votes[name] = v;
+            }
+        });
+        if (Object.keys(votes).length === 0) {
+            document.getElementById('injectStatus').textContent = 'No votes entered';
+            return;
+        }
+        const res = await fetch('/inject_votes', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({votes})
+        });
+        const data = await res.json();
+        document.getElementById('injectStatus').textContent = data.success ? '✅ Votes injected!' : '❌ ' + data.error;
+        inputs.forEach(inp => inp.value = 0);
+        setTimeout(loadTeams, 500);
+    }
+
+    async function injectFan() {
+        const name = document.getElementById('fan-name').value.trim();
+        const count = parseInt(document.getElementById('fan-count').value) || 0;
+        if (!name) { document.getElementById('fanStatus').textContent = 'Enter a username'; return; }
+        const res = await fetch('/inject_fan', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({name, count})
+        });
+        const data = await res.json();
+        document.getElementById('fanStatus').textContent = data.success ? `✅ ${name} → ${data.new_total} msgs` : '❌ ' + data.error;
+        document.getElementById('fan-name').value = '';
+        document.getElementById('fan-count').value = 0;
+    }
+
+    loadTeams();
+    setInterval(loadTeams, 10000);
+    </script>
     {% endif %}
 </div>
 </body>
