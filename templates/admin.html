@@ -229,6 +229,10 @@
     <div class="alert alert-success">{{ success }}</div>
     {% endif %}
 
+    {% if logged_in and not api_key_set %}
+    <div class="alert alert-error">⚠️ <strong>YOUTUBE_API_KEY not set!</strong> Add it in Render → Your Service → Environment → Add Variable. Without it the stream cannot connect.</div>
+    {% endif %}
+
     {% if not logged_in %}
     <!-- LOGIN FORM -->
     <form method="POST">
