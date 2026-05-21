@@ -780,47 +780,14 @@
         </div>
     </div>
 
-    <!-- Admin Controls -->
-    <div class="admin-toggle" onclick="toggleAdmin()">⚙️</div>
-    
-    <div class="admin-panel" id="adminPanel">
-        <!-- Tab Bar -->
-        <div class="admin-tabs">
-            <div class="admin-tab active" id="tab-votes" onclick="switchTab('votes')">📊 Vote Inject</div>
-            <div class="admin-tab" id="tab-fans" onclick="switchTab('fans')">🏆 Fan Inject</div>
-        </div>
-
-        <!-- Tab 1: Vote Injection -->
-        <div class="tab-content" id="content-votes">
-            <div class="vote-inject-form">
-                <div id="team-inputs"></div>
-                <button class="admin-button" onclick="injectVotes()">💉 Inject Votes</button>
-                <button class="admin-button danger" onclick="resetVotes()">🔄 Reset All Votes</button>
-                <div id="statusMessage" class="status-message"></div>
-            </div>
-        </div>
-
-        <!-- Tab 2: Fan Leaderboard Inject -->
-        <div class="tab-content" id="content-fans" style="display:none;">
-            <div class="vote-inject-form">
-                <p style="color:#888; font-size:0.85rem; margin-top:0;">Manually add a chatter to the Fan Leaderboard with a custom message count.</p>
-                <div class="team-input">
-                    <label>Username:</label>
-                    <input type="text" id="fan-inject-name" placeholder="ChatterName" style="flex:1; background:rgba(255,255,255,0.1); border:1px solid rgba(255,255,255,0.2); border-radius:5px; padding:5px 10px; color:white; font-family:'Rajdhani',sans-serif;">
-                </div>
-                <div class="team-input">
-                    <label>Msg Count:</label>
-                    <input type="number" id="fan-inject-count" placeholder="0" value="0" style="flex:1; background:rgba(255,255,255,0.1); border:1px solid rgba(255,255,255,0.2); border-radius:5px; padding:5px 10px; color:white; font-family:'Rajdhani',sans-serif;">
-                </div>
-                <button class="admin-button" onclick="injectFanCount()">💉 Inject Fan</button>
-                <button class="admin-button danger" onclick="resetFanLeaderboard()">🔄 Reset Leaderboard</button>
-                <div id="fanStatusMessage" class="status-message"></div>
-                <div style="margin-top:14px; border-top:1px solid rgba(255,255,255,0.08); padding-top:12px;">
-                    <div style="color:#666; font-size:0.8rem; margin-bottom:8px; text-transform:uppercase; letter-spacing:1px;">Current Top Chatters</div>
-                    <div id="fan-inject-preview" style="font-size:0.85rem; color:#aaa;">—</div>
-                </div>
-            </div>
-        </div>
+    <!-- Admin inject tools hidden from public (accessible via /admin page only) -->
+    <div id="adminPanel" style="display:none;">
+        <div id="team-inputs"></div>
+        <div id="statusMessage" class="status-message"></div>
+        <div id="fanStatusMessage" class="status-message"></div>
+        <input type="text" id="fan-inject-name">
+        <input type="number" id="fan-inject-count" value="0">
+        <div id="fan-inject-preview"></div>
     </div>
 
     <!-- Reconnection Indicator -->
