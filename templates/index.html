@@ -1,0 +1,1278 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Stream Chat Summary</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;700&display=swap');
+
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: #050505;
+            color: white;
+            font-family: 'Rajdhani', sans-serif;
+            overflow: hidden;
+            width: 1920px;
+            height: 1080px;
+        }
+
+        /* --- Header (8% Height) --- */
+        .header {
+            height: 8vh;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(5px);
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+            padding: 0 30px;
+            box-sizing: border-box;
+        }
+        
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+        
+        #digital-clock {
+            font-size: 1.8rem;
+            font-weight: 700;
+            color: #00ffcc;
+            text-shadow: 0 0 10px rgba(0, 255, 204, 0.6);
+            letter-spacing: 1px;
+            min-width: 120px;
+        }
+        
+        .header-center {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            flex: 1;
+            justify-content: center;
+        }
+        
+        .header-right {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+            gap: 5px;
+        }
+        
+        .header h1 {
+            font-size: 2.5rem;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            text-shadow: 0 0 10px rgba(255,255,255,0.5);
+            margin: 0;
+        }
+        
+        #stream-title {
+            font-size: 1.2rem;
+            color: #aaa;
+            max-width: 500px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        
+        #status-indicator {
+            font-size: 1rem;
+            color: #ff3333;
+        }
+        
+        #stream-uptime {
+            font-size: 1.2rem;
+            font-weight: 700;
+            color: #ff9500;
+            text-shadow: 0 0 10px rgba(255, 149, 0, 0.6);
+            letter-spacing: 1px;
+        }
+
+        /* --- Main Layout --- */
+        .container {
+            display: flex;
+            flex-wrap: wrap;
+            height: 92vh;
+            width: 100%;
+        }
+
+        /* --- Bar Chart Section (Top 60% of remaining) --- */
+        .bar-section {
+            width: 100%;
+            height: 60%;
+            display: flex;
+            align-items: flex-end;
+            justify-content: center;
+            padding-bottom: 60px;
+            padding-left: 120px;
+            padding-right: 0px;
+            box-sizing: border-box;
+            background: radial-gradient(circle at center, rgba(30,30,30,0.5) 0%, rgba(0,0,0,0) 70%);
+            gap: 15px;
+            position: relative;
+        }
+
+        .bar-container {
+            width: 130px; 
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-end;
+            align-items: center;
+            position: relative;
+        }
+
+        .bar {
+            width: 100%;
+            transition: height 0.5s ease-in-out, background-color 0.5s, box-shadow 0.5s;
+            border-top-left-radius: 8px;
+            border-top-right-radius: 8px;
+            
+            /* Glass Finish */
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-bottom: none;
+            box-shadow: 0 0 15px rgba(0,0,0,0.5);
+            
+            display: flex;
+            align-items: flex-end;
+            justify-content: center;
+            position: relative;
+        }
+        
+        .bar-label {
+            position: absolute;
+            bottom: 10px;
+            text-align: center;
+            width: 100%;
+            font-weight: 700;
+            font-size: 1.5rem;
+            text-shadow: 0 0 5px black;
+            z-index: 10;
+        }
+
+        .bar-count {
+            position: absolute;
+            bottom: calc(100% + 5px);
+            font-size: 1.1rem;
+            font-weight: bold;
+            color: white;
+            text-shadow: 0 0 10px rgba(255,255,255,0.8);
+        }
+
+        .bar-rank {
+            position: absolute;
+            bottom: -45px;
+            font-size: 1.2rem;
+            color: #aaa;
+        }
+
+        /* --- Bottom Left: Graph (75% width, 40% height) --- */
+        .graph-section {
+            width: 75%;
+            height: 40%;
+            padding: 20px;
+            box-sizing: border-box;
+            border-right: 1px solid rgba(255,255,255,0.1);
+            border-top: 1px solid rgba(255,255,255,0.1);
+            position: relative;
+        }
+
+        /* --- Bottom Right: Chat (25% width, 40% height) --- */
+        .chat-section {
+            width: 25%;
+            height: 40%;
+            background: rgba(0,0,0,0.3);
+            border-top: 1px solid rgba(255,255,255,0.1);
+            display: flex;
+            flex-direction: column;
+            padding: 10px;
+            box-sizing: border-box;
+        }
+
+        .chat-title {
+            font-size: 1.2rem;
+            margin-bottom: 10px;
+            color: #888;
+            border-bottom: 1px solid #333;
+            padding-bottom: 5px;
+        }
+
+        #chat-box {
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-end;
+            flex: 1;
+            font-size: 0.9rem;
+            text-shadow: 0 0 2px black;
+        }
+        
+        .chat-msg {
+            margin-bottom: 4px;
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+            padding-bottom: 2px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .chat-msg b {
+            color: #ccc;
+            margin-right: 5px;
+        }
+
+        /* --- Chat Rate Display at bottom of chat section --- */
+        .chat-rate-display {
+            margin-top: 10px;
+            padding-top: 10px;
+            border-top: 1px solid rgba(255,255,255,0.1);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.3rem;
+            font-weight: bold;
+            color: #00ffcc;
+            text-shadow: 0 0 10px #00ffcc;
+        }
+
+        /* --- Admin Controls Overlay --- */
+        .admin-toggle {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            font-size: 1.5rem;
+            transition: all 0.3s;
+            z-index: 1000;
+        }
+
+        .admin-toggle:hover {
+            background: rgba(255, 255, 255, 0.2);
+            box-shadow: 0 0 20px rgba(0, 255, 204, 0.5);
+        }
+
+        .admin-panel {
+            position: fixed;
+            bottom: 80px;
+            right: 20px;
+            background: rgba(0, 0, 0, 0.9);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(0, 255, 204, 0.3);
+            border-radius: 10px;
+            padding: 20px;
+            width: 400px;
+            max-height: 600px;
+            overflow-y: auto;
+            display: none;
+            z-index: 999;
+            box-shadow: 0 0 30px rgba(0, 255, 204, 0.3);
+        }
+
+        .admin-panel.active {
+            display: block;
+        }
+
+        .admin-panel h3 {
+            margin-top: 0;
+            color: #00ffcc;
+            border-bottom: 2px solid #00ffcc;
+            padding-bottom: 10px;
+        }
+
+        .vote-inject-form {
+            margin-top: 15px;
+        }
+
+        .team-input {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 10px;
+            align-items: center;
+        }
+
+        .team-input label {
+            min-width: 120px;
+            color: #aaa;
+        }
+
+        .team-input input {
+            flex: 1;
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 5px;
+            padding: 5px 10px;
+            color: white;
+            font-family: 'Rajdhani', sans-serif;
+        }
+
+        .admin-button {
+            background: rgba(0, 255, 204, 0.2);
+            border: 1px solid #00ffcc;
+            color: #00ffcc;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-family: 'Rajdhani', sans-serif;
+            font-weight: 700;
+            font-size: 1rem;
+            margin-top: 10px;
+            margin-right: 10px;
+            transition: all 0.3s;
+        }
+
+        .admin-button:hover {
+            background: rgba(0, 255, 204, 0.4);
+            box-shadow: 0 0 15px rgba(0, 255, 204, 0.5);
+        }
+
+        .admin-button.danger {
+            background: rgba(255, 51, 51, 0.2);
+            border-color: #ff3333;
+            color: #ff3333;
+        }
+
+        .admin-button.danger:hover {
+            background: rgba(255, 51, 51, 0.4);
+            box-shadow: 0 0 15px rgba(255, 51, 51, 0.5);
+        }
+
+        .status-message {
+            margin-top: 10px;
+            padding: 10px;
+            border-radius: 5px;
+            display: none;
+        }
+
+        .status-message.success {
+            background: rgba(0, 255, 0, 0.2);
+            border: 1px solid #00ff00;
+            color: #00ff00;
+            display: block;
+        }
+
+        .status-message.error {
+            background: rgba(255, 0, 0, 0.2);
+            border: 1px solid #ff0000;
+            color: #ff0000;
+            display: block;
+        }
+
+        /* Reconnection indicator */
+        .reconnect-indicator {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0, 0, 0, 0.95);
+            border: 2px solid #ff9500;
+            border-radius: 10px;
+            padding: 30px;
+            display: none;
+            z-index: 2000;
+            text-align: center;
+        }
+
+        .reconnect-indicator.active {
+            display: block;
+        }
+
+        .reconnect-spinner {
+            border: 3px solid rgba(255, 149, 0, 0.3);
+            border-top: 3px solid #ff9500;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 15px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* --- #1 Team Background Glow --- */
+        #bg-glow {
+            position: fixed;
+            inset: 0;
+            pointer-events: none;
+            z-index: 0;
+            /* Outline glow: radial gradients pushed to all four edges */
+            background:
+                radial-gradient(ellipse 80% 40% at 50% 0%,   var(--glow-color, transparent) 0%, transparent 70%),
+                radial-gradient(ellipse 80% 40% at 50% 100%, var(--glow-color, transparent) 0%, transparent 70%),
+                radial-gradient(ellipse 30% 100% at 0% 50%,  var(--glow-color, transparent) 0%, transparent 70%),
+                radial-gradient(ellipse 30% 100% at 100% 50%,var(--glow-color, transparent) 0%, transparent 70%);
+            transition: --glow-color 1s ease, opacity 1s ease;
+            opacity: 0;
+        }
+
+        /* Register the custom property so it can be transitioned */
+        @property --glow-color {
+            syntax: '<color>';
+            inherits: false;
+            initial-value: transparent;
+        }
+
+        /* --- Sun Flares --- */
+        .flare {
+            position: fixed;
+            border-radius: 50%;
+            pointer-events: none;
+            z-index: 0;
+            opacity: 0;
+            transition: background-color 1.5s ease, opacity 1.2s ease;
+        }
+
+        #flare-1 {
+            width: 500px;
+            height: 500px;
+            filter: blur(90px);
+            animation: flare-drift-1 28s ease-in-out infinite;
+        }
+
+        #flare-2 {
+            width: 280px;
+            height: 280px;
+            filter: blur(60px);
+            animation: flare-drift-2 40s ease-in-out infinite;
+        }
+
+        #flare-3 {
+            width: 350px;
+            height: 350px;
+            filter: blur(75px);
+            animation: flare-drift-3 52s ease-in-out infinite;
+        }
+
+        @keyframes flare-drift-1 {
+            0%   { transform: translate(80px, 150px); }
+            20%  { transform: translate(1500px, 80px); }
+            45%  { transform: translate(1700px, 650px); }
+            70%  { transform: translate(600px, 750px); }
+            85%  { transform: translate(200px, 400px); }
+            100% { transform: translate(80px, 150px); }
+        }
+
+        @keyframes flare-drift-2 {
+            0%   { transform: translate(1820px, 50px); }
+            30%  { transform: translate(900px, 400px); }
+            55%  { transform: translate(300px, 800px); }
+            80%  { transform: translate(1400px, 700px); }
+            100% { transform: translate(1820px, 50px); }
+        }
+
+        @keyframes flare-drift-3 {
+            0%   { transform: translate(960px, 30px); }
+            25%  { transform: translate(1750px, 350px); }
+            50%  { transform: translate(1100px, 900px); }
+            75%  { transform: translate(150px, 600px); }
+            100% { transform: translate(960px, 30px); }
+        }
+
+        
+
+        /* --- Fan Leaderboard Panel --- */
+        .fan-leaderboard {
+            position: fixed;
+            top: calc(8vh + 28px);
+            right: 20px;
+            width: 230px;
+            background: rgba(0, 0, 0, 0.55);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            border-radius: 12px;
+            padding: 12px 14px;
+            box-sizing: border-box;
+            z-index: 50;
+            box-shadow: 0 0 20px rgba(0, 255, 204, 0.08);
+        }
+
+        .fan-leaderboard-title {
+            font-size: 0.85rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            color: #00ffcc;
+            text-shadow: 0 0 8px rgba(0, 255, 204, 0.5);
+            text-align: center;
+            margin-bottom: 10px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid rgba(0, 255, 204, 0.2);
+        }
+
+        .fan-row {
+            display: flex;
+            align-items: center;
+            gap: 9px;
+            padding: 5px 0;
+            border-bottom: 1px solid rgba(255,255,255,0.04);
+        }
+
+        .fan-row:last-child {
+            border-bottom: none;
+        }
+
+        .fan-rank-badge {
+            font-size: 0.75rem;
+            font-weight: 700;
+            color: #555;
+            min-width: 16px;
+            text-align: center;
+        }
+
+        .fan-rank-badge.gold   { color: #ffd700; text-shadow: 0 0 6px #ffd700; }
+        .fan-rank-badge.silver { color: #c0c0c0; text-shadow: 0 0 6px #c0c0c0; }
+        .fan-rank-badge.bronze { color: #cd7f32; text-shadow: 0 0 6px #cd7f32; }
+
+        .fan-pfp {
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 1px solid rgba(255,255,255,0.2);
+            flex-shrink: 0;
+            background: #222;
+        }
+
+        /* --- Admin Panel Tabs --- */
+        .admin-tabs {
+            display: flex;
+            gap: 0;
+            margin-bottom: 16px;
+            border-bottom: 2px solid rgba(0, 255, 204, 0.2);
+        }
+
+        .admin-tab {
+            flex: 1;
+            text-align: center;
+            padding: 8px 12px;
+            font-size: 0.9rem;
+            font-weight: 700;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            color: #555;
+            cursor: pointer;
+            border-bottom: 2px solid transparent;
+            margin-bottom: -2px;
+            transition: all 0.2s;
+        }
+
+        .admin-tab:hover {
+            color: #aaa;
+        }
+
+        .admin-tab.active {
+            color: #00ffcc;
+            border-bottom: 2px solid #00ffcc;
+            text-shadow: 0 0 8px rgba(0, 255, 204, 0.5);
+        }
+
+        .fan-pfp-placeholder {
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #1a1a2e, #16213e);
+            border: 1px solid rgba(255,255,255,0.15);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.8rem;
+            color: #aaa;
+            flex-shrink: 0;
+        }
+
+        .fan-info {
+            flex: 1;
+            overflow: hidden;
+        }
+
+        .fan-name {
+            font-size: 0.82rem;
+            font-weight: 700;
+            color: #eee;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .fan-count {
+            font-size: 0.72rem;
+            color: #666;
+            margin-top: 1px;
+        }
+
+        /* --- Team Leaderboard Table (Top Left) --- */
+        .team-leaderboard {
+            position: fixed;
+            top: calc(8vh + 16px);
+            left: 20px;
+            width: 215px;
+            background: rgba(0, 0, 0, 0.50);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.10);
+            border-radius: 12px;
+            padding: 10px 12px 8px;
+            box-sizing: border-box;
+            z-index: 50;
+            box-shadow: 0 0 18px rgba(0, 255, 204, 0.07);
+        }
+
+        .team-leaderboard-title {
+            font-size: 0.72rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            color: #00ffcc;
+            text-shadow: 0 0 8px rgba(0, 255, 204, 0.5);
+            text-align: center;
+            margin-bottom: 6px;
+            padding-bottom: 6px;
+            border-bottom: 1px solid rgba(0, 255, 204, 0.2);
+        }
+
+        .team-lb-scroll { overflow: visible; }
+
+        .team-lb-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .team-lb-table tr {
+            border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+        }
+
+        .team-lb-table tr:last-child {
+            border-bottom: none;
+        }
+
+        .team-lb-table td {
+            padding: 3px 2px;
+            font-size: 0.74rem;
+            vertical-align: middle;
+        }
+
+        .team-lb-rank {
+            color: #555;
+            font-weight: 700;
+            font-size: 0.68rem;
+            width: 24px;
+            text-align: right;
+            padding-right: 4px;
+        }
+
+        .team-lb-rank.rank-1 { color: #ffd700; text-shadow: 0 0 5px #ffd700; }
+        .team-lb-rank.rank-2 { color: #c0c0c0; text-shadow: 0 0 5px #c0c0c0; }
+        .team-lb-rank.rank-3 { color: #cd7f32; text-shadow: 0 0 5px #cd7f32; }
+
+        .team-lb-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            display: inline-block;
+            flex-shrink: 0;
+            box-shadow: 0 0 4px currentColor;
+        }
+
+        .team-lb-name {
+            color: #ccc;
+            font-weight: 700;
+            padding-left: 6px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 118px;
+        }
+
+        .team-lb-count {
+            color: #00ffcc;
+            font-weight: 700;
+            font-size: 0.78rem;
+            text-align: right;
+            text-shadow: 0 0 5px rgba(0, 255, 204, 0.5);
+            min-width: 28px;
+        }
+
+        .team-lb-empty {
+            text-align: center;
+            color: #444;
+            font-size: 0.75rem;
+            padding: 8px 0;
+        }
+
+    </style>
+</head>
+<body>
+
+    <!-- #1 Team Background Glow -->
+    <div id="bg-glow"></div>
+    <!-- Sun Flares -->
+    <div class="flare" id="flare-1"></div>
+    <div class="flare" id="flare-2"></div>
+    <div class="flare" id="flare-3"></div>
+
+    <!-- Fan Leaderboard -->
+    <div class="fan-leaderboard" id="fanLeaderboard">
+        <div class="fan-leaderboard-title">🏆 Fan Leaderboard</div>
+        <div id="fan-list">
+            <!-- Populated by JS -->
+            <div class="fan-row" style="justify-content:center; color:#444; font-size:0.8rem; padding: 10px 0;">Waiting for chat...</div>
+        </div>
+    </div>
+
+    <!-- Team Leaderboard (Top Left) -->
+    <div class="team-leaderboard" id="teamLeaderboard">
+        <div class="team-leaderboard-title">📊 Teams</div>
+        <div class="team-lb-scroll">
+            <table class="team-lb-table" id="team-lb-body">
+                <tr><td class="team-lb-empty" colspan="4">Waiting for data...</td></tr>
+            </table>
+        </div>
+    </div>
+
+    <div class="header">
+        <div class="header-left">
+            <div id="digital-clock">00:00:00</div>
+        </div>
+        
+        <div class="header-center">
+            <h1 id="header-title">CHAT SUMMARY</h1>
+            <span style="color: #555; font-size: 2rem;">:</span>
+            <div id="stream-title">Loading...</div>
+        </div>
+        
+        <div class="header-right">
+            <div id="status-indicator">OFFLINE</div>
+            <div id="stream-uptime">00:00:00</div>
+        </div>
+    </div>
+
+    <div class="container">
+        <div class="bar-section" id="bar-wrapper">
+        </div>
+
+        <div class="graph-section">
+            <canvas id="rateChart"></canvas>
+        </div>
+
+        <div class="chat-section">
+            <div class="chat-title">LIVE CHAT</div>
+            <div id="chat-box"></div>
+            <div class="chat-rate-display">
+                Chat Rate: <span id="current-rate-text" style="margin-left:10px; margin-right:5px;">0</span>/sec
+            </div>
+        </div>
+    </div>
+
+    <!-- Admin Controls -->
+    <div class="admin-toggle" onclick="toggleAdmin()">⚙️</div>
+    
+    <div class="admin-panel" id="adminPanel">
+        <!-- Tab Bar -->
+        <div class="admin-tabs">
+            <div class="admin-tab active" id="tab-votes" onclick="switchTab('votes')">📊 Vote Inject</div>
+            <div class="admin-tab" id="tab-fans" onclick="switchTab('fans')">🏆 Fan Inject</div>
+        </div>
+
+        <!-- Tab 1: Vote Injection -->
+        <div class="tab-content" id="content-votes">
+            <div class="vote-inject-form">
+                <div id="team-inputs"></div>
+                <button class="admin-button" onclick="injectVotes()">💉 Inject Votes</button>
+                <button class="admin-button danger" onclick="resetVotes()">🔄 Reset All Votes</button>
+                <div id="statusMessage" class="status-message"></div>
+            </div>
+        </div>
+
+        <!-- Tab 2: Fan Leaderboard Inject -->
+        <div class="tab-content" id="content-fans" style="display:none;">
+            <div class="vote-inject-form">
+                <p style="color:#888; font-size:0.85rem; margin-top:0;">Manually add a chatter to the Fan Leaderboard with a custom message count.</p>
+                <div class="team-input">
+                    <label>Username:</label>
+                    <input type="text" id="fan-inject-name" placeholder="ChatterName" style="flex:1; background:rgba(255,255,255,0.1); border:1px solid rgba(255,255,255,0.2); border-radius:5px; padding:5px 10px; color:white; font-family:'Rajdhani',sans-serif;">
+                </div>
+                <div class="team-input">
+                    <label>Msg Count:</label>
+                    <input type="number" id="fan-inject-count" placeholder="0" value="0" style="flex:1; background:rgba(255,255,255,0.1); border:1px solid rgba(255,255,255,0.2); border-radius:5px; padding:5px 10px; color:white; font-family:'Rajdhani',sans-serif;">
+                </div>
+                <button class="admin-button" onclick="injectFanCount()">💉 Inject Fan</button>
+                <button class="admin-button danger" onclick="resetFanLeaderboard()">🔄 Reset Leaderboard</button>
+                <div id="fanStatusMessage" class="status-message"></div>
+                <div style="margin-top:14px; border-top:1px solid rgba(255,255,255,0.08); padding-top:12px;">
+                    <div style="color:#666; font-size:0.8rem; margin-bottom:8px; text-transform:uppercase; letter-spacing:1px;">Current Top Chatters</div>
+                    <div id="fan-inject-preview" style="font-size:0.85rem; color:#aaa;">—</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Reconnection Indicator -->
+    <div class="reconnect-indicator" id="reconnectIndicator">
+        <div class="reconnect-spinner"></div>
+        <div style="font-size: 1.5rem; color: #ff9500;">Reconnecting to chat...</div>
+        <div id="reconnectAttempts" style="font-size: 1rem; color: #aaa; margin-top: 10px;">Attempt: 0/5</div>
+    </div>
+
+    <script>
+        // --- Global Variables ---
+        let streamStartTime = null;
+        let teams = {};
+        let wasConnected = false;
+        
+        // --- Update Stream Uptime ---
+        function updateUptime() {
+            if (streamStartTime) {
+                const now = Date.now();
+                const elapsed = Math.floor((now - streamStartTime) / 1000);
+                
+                const hours = Math.floor(elapsed / 3600);
+                const minutes = Math.floor((elapsed % 3600) / 60);
+                const seconds = elapsed % 60;
+                
+                const timeString = `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+                document.getElementById('stream-uptime').innerText = timeString;
+            } else {
+                document.getElementById('stream-uptime').innerText = "00:00:00";
+            }
+        }
+        
+        // Update uptime every second
+        setInterval(updateUptime, 1000);
+        
+        // --- Digital Clock (Kolkata, India timezone) ---
+        function updateClock() {
+            const now = new Date();
+            const options = {
+                timeZone: 'Asia/Kolkata',
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit',
+                hour12: false
+            };
+            const timeString = now.toLocaleTimeString('en-US', options);
+            document.getElementById('digital-clock').innerText = timeString;
+        }
+        
+        // Update clock every second
+        setInterval(updateClock, 1000);
+        updateClock(); // Initial call
+
+        // --- Setup Chart.js for Neon Line Graph ---
+        const ctx = document.getElementById('rateChart').getContext('2d');
+        const rateChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: [],
+                datasets: [{
+                    label: 'Chat Intensity',
+                    data: [],
+                    borderColor: '#00ff00', 
+                    backgroundColor: 'rgba(0, 255, 0, 0.1)',
+                    borderWidth: 2,
+                    tension: 0.4, 
+                    pointRadius: 0
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    x: { display: false },
+                    y: { 
+                        display: true,
+                        grid: { color: 'rgba(255,255,255,0.1)' },
+                        ticks: { color: '#666' },
+                        beginAtZero: true
+                    }
+                },
+                plugins: { legend: { display: false } },
+                animation: { duration: 0 } 
+            }
+        });
+
+        // --- Generate 8 Bars initially ---
+        const barWrapper = document.getElementById('bar-wrapper');
+        for(let i=0; i<8; i++){
+            let html = `
+            <div class="bar-container">
+                <div class="bar-count" id="count-${i}">0</div>
+                <div class="bar" id="bar-${i}" style="height: 2%; background-color: #333;">
+                    <div class="bar-label" id="label-${i}">-</div>
+                </div>
+                <div class="bar-rank" id="rank-${i}">#</div>
+            </div>`;
+            barWrapper.innerHTML += html;
+        }
+
+        // --- Admin Panel Functions ---
+        function toggleAdmin() {
+            const panel = document.getElementById('adminPanel');
+            panel.classList.toggle('active');
+        }
+
+        async function loadTeams() {
+            try {
+                const response = await fetch('/get_teams');
+                const data = await response.json();
+                
+                if (data.success) {
+                    teams = data.teams;
+                    renderTeamInputs();
+                }
+            } catch (e) {
+                console.error("Error loading teams", e);
+            }
+        }
+
+        function renderTeamInputs() {
+            const container = document.getElementById('team-inputs');
+            container.innerHTML = '';
+            
+            for (const [teamName, count] of Object.entries(teams)) {
+                const div = document.createElement('div');
+                div.className = 'team-input';
+                div.innerHTML = `
+                    <label>${teamName}:</label>
+                    <input type="number" id="inject-${teamName.replace(/\s+/g, '-')}" placeholder="0" value="0">
+                    <span style="color: #666; font-size: 0.9rem;">(Current: ${count})</span>
+                `;
+                container.appendChild(div);
+            }
+        }
+
+        async function injectVotes() {
+            const votes = {};
+            
+            for (const teamName of Object.keys(teams)) {
+                const inputId = `inject-${teamName.replace(/\s+/g, '-')}`;
+                const value = parseInt(document.getElementById(inputId).value) || 0;
+                
+                if (value !== 0) {
+                    votes[teamName] = value;
+                }
+            }
+            
+            if (Object.keys(votes).length === 0) {
+                showStatus('No votes to inject', 'error');
+                return;
+            }
+            
+            try {
+                const response = await fetch('/inject_votes', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ votes: votes })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    showStatus('Votes injected successfully!', 'success');
+                    // Reset inputs
+                    for (const teamName of Object.keys(teams)) {
+                        const inputId = `inject-${teamName.replace(/\s+/g, '-')}`;
+                        document.getElementById(inputId).value = 0;
+                    }
+                    // Reload team data
+                    setTimeout(loadTeams, 1000);
+                } else {
+                    showStatus('Error: ' + data.error, 'error');
+                }
+            } catch (e) {
+                showStatus('Network error: ' + e.message, 'error');
+            }
+        }
+
+        async function resetVotes() {
+            if (!confirm('Are you sure you want to reset all votes to 0?')) {
+                return;
+            }
+            
+            try {
+                const response = await fetch('/reset_votes', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    showStatus('All votes reset!', 'success');
+                    setTimeout(loadTeams, 1000);
+                } else {
+                    showStatus('Error: ' + data.error, 'error');
+                }
+            } catch (e) {
+                showStatus('Network error: ' + e.message, 'error');
+            }
+        }
+
+        function showStatus(message, type) {
+            const statusDiv = document.getElementById('statusMessage');
+            statusDiv.className = 'status-message ' + type;
+            statusDiv.innerText = message;
+            setTimeout(() => { statusDiv.className = 'status-message'; }, 5000);
+        }
+
+        function showFanStatus(message, type) {
+            const statusDiv = document.getElementById('fanStatusMessage');
+            statusDiv.className = 'status-message ' + type;
+            statusDiv.innerText = message;
+            setTimeout(() => { statusDiv.className = 'status-message'; }, 5000);
+        }
+
+        // --- Tab Switcher ---
+        function switchTab(tab) {
+            document.getElementById('content-votes').style.display = tab === 'votes' ? 'block' : 'none';
+            document.getElementById('content-fans').style.display  = tab === 'fans'  ? 'block' : 'none';
+            document.getElementById('tab-votes').classList.toggle('active', tab === 'votes');
+            document.getElementById('tab-fans').classList.toggle('active',  tab === 'fans');
+        }
+
+        // --- Fan Inject Functions ---
+        async function injectFanCount() {
+            const name  = document.getElementById('fan-inject-name').value.trim();
+            const count = parseInt(document.getElementById('fan-inject-count').value) || 0;
+            if (!name)    { showFanStatus('Enter a username', 'error'); return; }
+            if (count === 0) { showFanStatus('Count must not be 0', 'error'); return; }
+            try {
+                const response = await fetch('/inject_fan', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name, count })
+                });
+                const data = await response.json();
+                if (data.success) {
+                    showFanStatus('Injected ' + name + ' with ' + data.new_total + ' msgs!', 'success');
+                    document.getElementById('fan-inject-name').value  = '';
+                    document.getElementById('fan-inject-count').value = 0;
+                } else { showFanStatus('Error: ' + data.error, 'error'); }
+            } catch (e) { showFanStatus('Network error: ' + e.message, 'error'); }
+        }
+
+        async function resetFanLeaderboard() {
+            if (!confirm('Reset all fan leaderboard counts to 0?')) return;
+            try {
+                const response = await fetch('/reset_fans', { method: 'POST', headers: { 'Content-Type': 'application/json' } });
+                const data = await response.json();
+                if (data.success) { showFanStatus('Fan leaderboard reset!', 'success'); }
+                else { showFanStatus('Error: ' + data.error, 'error'); }
+            } catch (e) { showFanStatus('Network error: ' + e.message, 'error'); }
+        }
+
+        // --- Data Fetch Loop ---
+        async function fetchData() {
+            try {
+                const response = await fetch('/data');
+                const data = await response.json();
+
+                // 1. Update Header Status
+                const statusDiv = document.getElementById('status-indicator');
+                const reconnectDiv = document.getElementById('reconnectIndicator');
+                
+                if(data.status) {
+                    statusDiv.innerText = "● LIVE";
+                    statusDiv.style.color = "#00ff00";
+                    statusDiv.style.textShadow = "0 0 10px #00ff00";
+                    
+                    // Hide reconnect indicator
+                    reconnectDiv.classList.remove('active');
+                    
+                    // Initialize stream start time if not set
+                    if (!streamStartTime) {
+                        streamStartTime = Date.now();
+                        updateUptime(); // Update immediately
+                    }
+                    
+                    wasConnected = true;
+                } else {
+                    statusDiv.innerText = "● CONNECTING...";
+                    statusDiv.style.color = "#ff9500";
+                    statusDiv.style.textShadow = "0 0 10px #ff9500";
+                    
+                    // Show reconnect indicator if was previously connected
+                    if (wasConnected && data.reconnect_attempts > 0) {
+                        reconnectDiv.classList.add('active');
+                        document.getElementById('reconnectAttempts').innerText = 
+                            `Attempt: ${data.reconnect_attempts}/5`;
+                    }
+                }
+                
+                // Update stream title if available
+                if(data.stream_title) {
+                    document.getElementById('stream-title').innerText = data.stream_title;
+                }
+
+                // 2. Update Bars
+                let maxCount = 0;
+                data.podium.forEach(p => { if(p.count > maxCount) maxCount = p.count; });
+                if (maxCount === 0) maxCount = 10; // Default scale if no votes yet
+
+                // Find #1 team for background glow
+                let topTeam = null;
+                data.podium.forEach((team, index) => {
+                    if (team.rank === 1) topTeam = team;
+
+                    const bar = document.getElementById(`bar-${index}`);
+                    const label = document.getElementById(`label-${index}`);
+                    const count = document.getElementById(`count-${index}`);
+                    const rank = document.getElementById(`rank-${index}`);
+
+                    // Calculate Height (Max 100%, Min 2%)
+                    let heightPerc = (team.count / maxCount) * 100;
+                    if(heightPerc < 2) heightPerc = 2; 
+
+                    bar.style.height = `${heightPerc}%`;
+                    bar.style.backgroundColor = team.color;
+                    
+                    if(team.name !== "-"){
+                        bar.style.boxShadow = `0 0 20px ${team.color}80`; 
+                    } else {
+                        bar.style.boxShadow = "none";
+                    }
+                    
+                    label.innerText = team.name;
+                    count.innerText = team.count;
+                    rank.innerText = team.rank !== "-" ? "#" + team.rank : "";
+                });
+
+                // Update Team Leaderboard Table
+                const teamLbBody = document.getElementById('team-lb-body');
+                const allTeams = data.all_teams || [];
+                if (allTeams.length === 0) {
+                    teamLbBody.innerHTML = '<tr><td class="team-lb-empty" colspan="4">Waiting for data...</td></tr>';
+                } else {
+                    teamLbBody.innerHTML = allTeams.map(t => {
+                        const rankClass = t.rank === 1 ? 'rank-1' : t.rank === 2 ? 'rank-2' : t.rank === 3 ? 'rank-3' : '';
+                        return `<tr>
+                            <td class="team-lb-rank ${rankClass}">#${t.rank}</td>
+                            <td><span class="team-lb-dot" style="background:${t.color}; color:${t.color};"></span></td>
+                            <td class="team-lb-name">${t.name}</td>
+                            <td class="team-lb-count">${t.count.toLocaleString()}</td>
+                        </tr>`;
+                    }).join('');
+                }
+
+                // Apply #1 team glow to background + flares
+                const bgGlow = document.getElementById('bg-glow');
+                const flare1 = document.getElementById('flare-1');
+                const flare2 = document.getElementById('flare-2');
+                const flare3 = document.getElementById('flare-3');
+
+                if (topTeam && topTeam.name !== "-" && topTeam.count > 0) {
+                    const hex = topTeam.color.replace('#', '');
+                    const r = parseInt(hex.substring(0,2), 16);
+                    const g = parseInt(hex.substring(2,4), 16);
+                    const b = parseInt(hex.substring(4,6), 16);
+
+                    const glowColor   = `rgba(${r}, ${g}, ${b}, 0.18)`;
+                    const flare1Color = `rgba(${r}, ${g}, ${b}, 0.22)`;
+                    const flare2Color = `rgba(${r}, ${g}, ${b}, 0.16)`;
+                    const flare3Color = `rgba(${r}, ${g}, ${b}, 0.12)`;
+
+                    bgGlow.style.setProperty('--glow-color', glowColor);
+                    bgGlow.style.opacity = '1';
+
+                    flare1.style.backgroundColor = flare1Color;
+                    flare2.style.backgroundColor = flare2Color;
+                    flare3.style.backgroundColor = flare3Color;
+                    flare1.style.opacity = '1';
+                    flare2.style.opacity = '1';
+                    flare3.style.opacity = '1';
+                } else {
+                    bgGlow.style.opacity = '0';
+                    flare1.style.opacity = '0';
+                    flare2.style.opacity = '0';
+                    flare3.style.opacity = '0';
+                }
+
+                // 3. Update Chat Box
+                const chatBox = document.getElementById('chat-box');
+                let chatHtml = "";
+                data.chat_history.slice(-15).forEach(msgObj => {
+                    chatHtml += `<div class="chat-msg"><b>${msgObj.author}:</b> ${msgObj.message}</div>`;
+                });
+                chatBox.innerHTML = chatHtml;
+
+                // 4. Update Chat Rate Number
+                document.getElementById('current-rate-text').innerText = data.rate_current;
+
+                // 5. Update Graph
+                const labels = data.rate_graph.map(d => d.time);
+                const values = data.rate_graph.map(d => d.rate);
+                
+                rateChart.data.labels = labels;
+                rateChart.data.datasets[0].data = values;
+                rateChart.update();
+
+                // 6. Update Fan Leaderboard
+                const fanList = document.getElementById('fan-list');
+                const chatters = data.top_chatters || [];
+                const rankClasses = ['gold', 'silver', 'bronze', '', ''];
+                const rankSymbols = ['1', '2', '3', '4', '5'];
+
+                if (chatters.length === 0) {
+                    fanList.innerHTML = '<div class="fan-row" style="justify-content:center; color:#444; font-size:0.8rem; padding: 10px 0;">Waiting for chat...</div>';
+                } else {
+                    let fanHtml = '';
+                    chatters.forEach((chatter, i) => {
+                        const pfpHtml = chatter.pfp
+                            ? `<img class="fan-pfp" src="${chatter.pfp}" onerror="this.style.display='none'; this.nextSibling.style.display='flex';" /><div class="fan-pfp-placeholder" style="display:none;">${chatter.name.charAt(0).toUpperCase()}</div>`
+                            : `<div class="fan-pfp-placeholder">${chatter.name.charAt(0).toUpperCase()}</div>`;
+
+                        fanHtml += `
+                        <div class="fan-row">
+                            <div class="fan-rank-badge ${rankClasses[i]}">${rankSymbols[i]}</div>
+                            ${pfpHtml}
+                            <div class="fan-info">
+                                <div class="fan-name">${chatter.name}</div>
+                                <div class="fan-count">${chatter.count} msgs</div>
+                            </div>
+                        </div>`;
+                    });
+                    fanList.innerHTML = fanHtml;
+                }
+
+                // 7. Update Fan Inject Preview in admin panel
+                const previewEl = document.getElementById('fan-inject-preview');
+                if (previewEl) {
+                    if (chatters.length === 0) {
+                        previewEl.innerHTML = '<span style="color:#444;">No chatters yet</span>';
+                    } else {
+                        previewEl.innerHTML = chatters.map((c, i) =>
+                            '<div style="display:flex;justify-content:space-between;padding:2px 0;border-bottom:1px solid rgba(255,255,255,0.05);"><span>' + (i+1) + '. ' + c.name + '</span><span style="color:#00ffcc;">' + c.count + '</span></div>'
+                        ).join('');
+                    }
+                }
+
+            } catch (e) {
+                console.error("Error fetching data", e);
+            }
+        }
+
+        // Initialize
+        loadTeams();
+        
+        // Run every 1 second
+        setInterval(fetchData, 1000);
+
+    </script>
+</body>
+</html>
